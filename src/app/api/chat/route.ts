@@ -1,44 +1,38 @@
-// app/api/chat/route.ts
+// src/app/api/chat/route.ts
 import { NextResponse } from 'next/server';
-import { streamText } from 'ai';
 import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { messages = [], language = 'English' } = body;
+    const { messages, language } = body;
 
     const systemMessage = {
       role: 'system',
-      content: `You are a helpful assistant. Always respond in ${language}. Be concise and friendly.`,
+      content: `You are a helpful AI assistant. Always respond in ${language || 'English'} clearly and politely.`,
     };
 
-    const result = await streamText({
-      model: google('gemini-1.5'), // change to your model
+    // ✅ Use generateText to return resolved text (no streaming Promise)
+    const result = await generateText({
+      model: google('gemini-1.5-pro'),
       messages: [systemMessage, ...messages],
-      temperature: 0.2,
+      temperature: 0.4,
     });
 
-    // Inspect result at runtime if needed:
-    // console.log('streamText result', result);
+    // Some SDKs nest text differently — handle all cases
+    const text =
+      (result as any).text ||
+      (result as any).output_text ||
+      (result as any).content ||
+      JSON.stringify(result);
 
-    // common places SDK may put the underlying stream:
-    const maybeStream = (result as any).stream ?? (result as any).body ?? (result as any).readable;
-
-    if (maybeStream && typeof (maybeStream as any).getReader === 'function') {
-      // It's a ReadableStream (Web) — safe to return directly
-      return new Response(maybeStream as unknown as ReadableStream, {
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-      });
-    }
-
-    // Fallback: try to convert the SDK result to text
-    const fallbackText = (result as any).text ?? (result as any).outputText ?? JSON.stringify(result);
-    return new Response(fallbackText, {
+    // ✅ Return plain string (no Promise)
+    return new Response(text, {
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     });
   } catch (err) {
-    console.error('AI request error:', err);
+    console.error('AI request failed:', err);
     return NextResponse.json({ error: 'AI request failed' }, { status: 500 });
   }
 }
