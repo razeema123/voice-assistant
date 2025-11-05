@@ -13,9 +13,8 @@ export async function POST(req: Request) {
       content: `You are a helpful AI assistant. Always respond in ${language || 'English'} clearly and politely.`,
     };
 
-    // ✅ Use generateText to return resolved text (no streaming Promise)
     const result = await generateText({
-      model: google('gemini-1.5-pro'),
+      model: google('gemini-2.5-flash'),
       messages: [systemMessage, ...messages],
       temperature: 0.4,
     });
